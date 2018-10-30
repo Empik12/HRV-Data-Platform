@@ -41,7 +41,7 @@ ui <- fluidPage(
              tabPanel("Features",
                       actionButton("features", "Extract features!"),
                       # tableOutput("extract"),
-                      DT::dataTableOutput("peaks")
+                      DT::DTOutput('peaks')
                       
                       
              ),

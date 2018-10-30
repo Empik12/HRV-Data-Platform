@@ -84,12 +84,23 @@ NN50_forXsec <- function(peaks, X){
   return(countOfIntervalsIn30sec)
 }
 
+total_time_calculation <- function(countOfIntervalsIn30sec){
+  total <- 0
+  countOfIntervalsIn30sec$total_time <- 0
+  for(rowN in 1:as.numeric(length(countOfIntervalsIn30sec$time))){
+    total = countOfIntervalsIn30sec$time[rowN] + total
+    countOfIntervalsIn30sec$total_time[rowN] <- total
+  }
+  
+  return(countOfIntervalsIn30sec)
+}
+
 NN50_intervals_calculation <- function(countOfIntervalsIn30sec, peaks){
   NN_intervals <- c()
   nn <- 0
   rowNOfIntervals <- 1
   countOfIntervalsIn30sec$NN50 <- 0
-  cat(countOfIntervalsIn30sec$NN50[1])
+
   for(rowN in 1:as.numeric(length(peaks$Interval))){
     
     if(rowN > 1) {
@@ -202,3 +213,4 @@ RMSSD_intervals_calculation <- function(countOfIntervalsIn30sec, peaks){
   
   return(countOfIntervalsIn30sec)
 }
+

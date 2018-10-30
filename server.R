@@ -1,6 +1,9 @@
 source("Data_Preprocessing.R")
+source("UI_Helper.R")
 source("ui.R")
 library("ggplot2")
+library(DT)
+
 
 
 server <- (function(input,output) {
@@ -18,6 +21,7 @@ server <- (function(input,output) {
     ppg_data$peaks <- intervals_calculation(ppg_data$peaks)
     ppg_data$peaks <- NN_intervals_correction(ppg_data$peaks)
     ppg_data$intervalsFeatures <- NN50_forXsec(ppg_data$peaks, as.numeric(input$timeFramesSize))
+    ppg_data$intervalsFeatures <- total_time_calculation(ppg_data$intervalsFeatures)
     ppg_data$intervalsFeatures <- NN50_intervals_calculation(ppg_data$intervalsFeatures, ppg_data$peaks)
     ppg_data$intervalsFeatures <- pNN50_intervals_calculation(ppg_data$intervalsFeatures)
     ppg_data$intervalsFeatures <- SDNN_intervals_calculation(ppg_data$intervalsFeatures,ppg_data$peaks)
@@ -33,7 +37,12 @@ server <- (function(input,output) {
        geom_line(color="red")
    })
   output$extract <- renderTable(ppg_data$df_data)
-  output$peaks <- renderTable(ppg_data$intervalsFeatures)
+  output$peaks = DT::renderDT({as.data.frame(ppg_data$intervalsFeatures)})
+  # output$peaks = DT::renderDT({datatable(as.data.frame(ppg_data$intervalsFeatures)) %>% formatStyle(
+  #     'NN50',
+  #     backgroundColor = styleInterval(1.5, c('gray', 'yellow'))
+  #   )
+  # })
 
  
 })
