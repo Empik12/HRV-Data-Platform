@@ -6,9 +6,9 @@ library(DT)
 
 
 
-server <- (function(input,output) {
+server <- (function(input,output,session) {
   
-  ppg_data <- reactiveValues(df_data = NULL, peaks = NULL, intervalsFeatures = NULL)
+  ppg_data <- reactiveValues(df_data = NULL, peaks = NULL, intervalsFeatures = NULL, DFRows = 0, feedbackDF = NULL, intervalsFeaturesFeedback = NULL)
   
   observeEvent(input$PPG_File, {
     ppg_data$df_data <- read.csv(input$PPG_File$datapath, header = input$header ,sep = ',', dec = '.', encoding = 'UTF-8')
@@ -25,8 +25,11 @@ server <- (function(input,output) {
     ppg_data$intervalsFeatures <- NN50_intervals_calculation(ppg_data$intervalsFeatures, ppg_data$peaks)
     ppg_data$intervalsFeatures <- pNN50_intervals_calculation(ppg_data$intervalsFeatures)
     ppg_data$intervalsFeatures <- SDNN_intervals_calculation(ppg_data$intervalsFeatures,ppg_data$peaks)
-    ppg_data$intervalsFeatures <- RMSSD_intervals_calculation(ppg_data$intervalsFeatures,ppg_data$peaks)
+    ppg_data$intervalsFeatures <- as.data.frame(RMSSD_intervals_calculation(ppg_data$intervalsFeatures,ppg_data$peaks))
     
+    ppg_data$DFRows <- as.character(1:length(ppg_data$intervalsFeatures$time))
+    ppg_data$feedbackDF <- as.data.frame(generate_feedback_matrix(5,length(ppg_data$intervalsFeatures$time),ppg_data$DFRows))
+    ppg_data$intervalsFeaturesFeedback <- merge(ppg_data$intervalsFeatures,ppg_data$feedbackDF, by=0, all=TRUE)
   })
   
   ## Outputs setting
@@ -37,12 +40,30 @@ server <- (function(input,output) {
        geom_line(color="red")
    })
   output$extract <- renderTable(ppg_data$df_data)
-  output$peaks = DT::renderDT({as.data.frame(ppg_data$intervalsFeatures)})
-  # output$peaks = DT::renderDT({datatable(as.data.frame(ppg_data$intervalsFeatures)) %>% formatStyle(
-  #     'NN50',
-  #     backgroundColor = styleInterval(1.5, c('gray', 'yellow'))
-  #   )
-  # })
+  #output$peaks = DT::renderDT({as.data.frame(ppg_data$intervalsFeatures)})
+  observeEvent(input$features, {
+      output$selection = DT::renderDataTable(
+        ppg_data$intervalsFeaturesFeedback,
+        escape = FALSE, selection = 'none', server = FALSE,
+        options = list(dom = 't', paging = FALSE, ordering = FALSE),
+        callback = JS("table.rows().every(function(i, tab, row) {
+                      var $this = $(this.node());
+                      $this.attr('id', this.data()[0]);
+                      $this.addClass('shiny-input-radiogroup');
+    });
+                      Shiny.unbindAll(table.table().node());
+                      Shiny.bindAll(table.table().node());")
+      )
+  }
+
+  )
+  
+  observeEvent(input$confirmFeedback, {
+    cat(sapply(ppg_data$DFRows,function(i) input[[i]]))
+    
+    ppg_data$intervalsFeaturesFeedback$feedback <- sapply(ppg_data$DFRows,function(i) input[[i]])
+  })
+
 
  
 })

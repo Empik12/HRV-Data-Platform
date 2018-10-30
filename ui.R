@@ -40,8 +40,10 @@ ui <- fluidPage(
              ),
              tabPanel("Features",
                       actionButton("features", "Extract features!"),
+                      actionButton("confirmFeedback", "Confirm feedback"),
                       # tableOutput("extract"),
-                      DT::DTOutput('peaks')
+                      #DT::DTOutput('peaks'),
+                      DT::DTOutput('selection')
                       
                       
              ),
