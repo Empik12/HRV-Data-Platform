@@ -214,3 +214,35 @@ RMSSD_intervals_calculation <- function(countOfIntervalsIn30sec, peaks){
   return(countOfIntervalsIn30sec)
 }
 
+SDSD_intervals_calculation <- function(countOfIntervalsIn30sec, peaks){
+  NN_intervals <- c()
+  nn <- 0
+  rowNOfIntervals <- 1
+  countOfIntervalsIn30sec$SDSD <- 0
+  
+  for(rowN in 1:as.numeric(length(peaks$Interval))){
+    
+    if(rowN > 1) {
+      
+      if(countOfIntervalsIn30sec$count[rowNOfIntervals] == rowN){
+
+        if(length(NN_intervals) != 0){
+          countOfIntervalsIn30sec$SDSD[rowNOfIntervals] <- sd(NN_intervals)
+          
+        }else{
+          countOfIntervalsIn30sec$SDSD[rowNOfIntervals] <- 0
+        }
+        
+        NN_intervals <- c()
+        rowNOfIntervals <- rowNOfIntervals +1
+      }else{
+         
+     
+            NN_intervals <- append(NN_intervals, abs(peaks$Interval[rowN-1]-peaks$Interval[rowN]))
+     
+      }
+    }
+  }
+  return(countOfIntervalsIn30sec)
+}
+

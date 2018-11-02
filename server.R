@@ -23,6 +23,7 @@ server <- (function(input,output,session) {
     ppg_data$intervalsFeatures <- NN50_forXsec(ppg_data$peaks, as.numeric(input$timeFramesSize))
     ppg_data$intervalsFeatures <- total_time_calculation(ppg_data$intervalsFeatures)
     ppg_data$intervalsFeatures <- NN50_intervals_calculation(ppg_data$intervalsFeatures, ppg_data$peaks)
+    ppg_data$intervalsFeatures <- SDSD_intervals_calculation(ppg_data$intervalsFeatures, ppg_data$peaks)
     ppg_data$intervalsFeatures <- pNN50_intervals_calculation(ppg_data$intervalsFeatures)
     ppg_data$intervalsFeatures <- SDNN_intervals_calculation(ppg_data$intervalsFeatures,ppg_data$peaks)
     ppg_data$intervalsFeatures <- as.data.frame(RMSSD_intervals_calculation(ppg_data$intervalsFeatures,ppg_data$peaks))
