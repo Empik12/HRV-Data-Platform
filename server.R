@@ -8,14 +8,19 @@ library(DT)
 
 server <- (function(input,output,session) {
   
+  # initialization of reactive values
   ppg_data <- reactiveValues(df_data = NULL, peaks = NULL, intervalsFeatures = NULL, DFRows = 0, feedbackDF = NULL, intervalsFeaturesFeedback = NULL)
   
+  # observation on File input of PPG Data
   observeEvent(input$PPG_File, {
-    ppg_data$df_data <- read.csv(input$PPG_File$datapath, header = input$header ,sep = ',', dec = '.', encoding = 'UTF-8')
+    # reading data from csv and setting collumn names
+    ppg_data$df_data <- read.csv(input$PPG_File$datapath, header = input$headerPPG ,sep = ',', dec = '.', encoding = 'UTF-8')
     colnames(ppg_data$df_data) <- c("Time", "Value") 
   })
   
+  # observation od features extraction from PPG data into features
   observeEvent(input$features, {
+    
     ppg_data$df_data["Value"] <- preprocess_data(ppg_data$df_data["Value"])
     ppg_data$peaks <- peak_detection_time_calculation(ppg_data$df_data["Value"], as.numeric(input$frequencyIN))
     ppg_data$peaks <- intervals_calculation(ppg_data$peaks)
@@ -29,8 +34,9 @@ server <- (function(input,output,session) {
     ppg_data$intervalsFeatures <- as.data.frame(RMSSD_intervals_calculation(ppg_data$intervalsFeatures,ppg_data$peaks))
     
     ppg_data$DFRows <- as.character(1:length(ppg_data$intervalsFeatures$time))
-    ppg_data$feedbackDF <- as.data.frame(generate_feedback_matrix(5,length(ppg_data$intervalsFeatures$time),ppg_data$DFRows))
-    ppg_data$intervalsFeaturesFeedback <- merge(ppg_data$intervalsFeatures,ppg_data$feedbackDF, by=0, all=TRUE)
+  
+    ppg_data$intervalsFeaturesFeedback <- merge_data_frames(ppg_data$intervalsFeatures, ppg_data$DFRows)
+    
   })
   
   ## Outputs setting
@@ -41,10 +47,10 @@ server <- (function(input,output,session) {
        geom_line(color="red")
    })
   output$extract <- renderTable(ppg_data$df_data)
-  #output$peaks = DT::renderDT({as.data.frame(ppg_data$intervalsFeatures)})
+ # output$features = DT::renderDT({as.data.frame(ppg_data$intervalsFeatures)})
   observeEvent(input$features, {
       output$selection = DT::renderDataTable(
-        ppg_data$intervalsFeaturesFeedback,
+        ppg_data$intervalsFeaturesFeedback[,-(1:2)],
         escape = FALSE, selection = 'none', server = FALSE,
         options = list(dom = 't', paging = FALSE, ordering = FALSE),
         callback = JS("table.rows().every(function(i, tab, row) {

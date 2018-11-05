@@ -14,3 +14,18 @@ generate_feedback_matrix <- function(Ncols,Nrows,DFRows){
     return(m)
 }
 
+merge_data_frames <- function(featuresDF, sequence){
+  
+  
+  feedbackDF <- as.data.frame(generate_feedback_matrix(5,length(featuresDF$time),sequence))
+  featuresFeadbackDF <- merge(featuresDF,feedbackDF, by=0, all=TRUE)
+  
+  featuresFeadbackDF <- featuresFeadbackDF[
+    with(featuresFeadbackDF, order(as.numeric(featuresFeadbackDF$Row.names))),
+    ]
+  row.names(featuresFeadbackDF) <- featuresFeadbackDF$Row.names
+  return(featuresFeadbackDF)
+}
+
+
+
