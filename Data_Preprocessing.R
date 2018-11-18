@@ -1,4 +1,5 @@
 library("pracma")
+library("e1071")
 
 preprocess_data <- function(rawData)
 {# increasing dynamic range of the data
@@ -245,4 +246,32 @@ SDSD_intervals_calculation <- function(countOfIntervalsIn30sec, peaks){
   }
   return(countOfIntervalsIn30sec)
 }
+
+feature_normalization <- function(list_L){
+  
+  list_L <- (list_L - min(list_L)) / (max(list_L)-min(list_L))
+  
+  return(list_L)
+  #return(svm_prediction)
+}
+
+
+# train_on_base <- function(countOfIntervalsIn30sec){
+#   svm_prediction = svm(formula =  countOfIntervalsIn30sec$state ~ .,
+#                        data = countOfIntervalsIn30sec,
+#                        type = 'C-classification',
+#                        kernel = 'radial')
+#   
+#   return(svm_prediction)
+# }
+# 
+# create_segments_knn <- function(countOfIntervalsIn30sec){
+#   svm_prediction = svm(formula =  countOfIntervalsIn30sec$state ~ .,
+#                        data = countOfIntervalsIn30sec,
+#                        type = 'C-classification',
+#                        kernel = 'radial')
+#   
+#   return(svm_prediction)
+# }
+
 
