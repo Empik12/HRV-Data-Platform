@@ -15,16 +15,7 @@ library(aws.s3)
 server <- (function(input,output,session) {
   
 
-  
-  reactive(function() {
-    input$recalcButton
-    isolate({
-      s3BucketName <- "hrvdata"
-      Sys.setenv("AWS_ACCESS_KEY_ID" = "AKIAIHG7EIUSBQC6GJGQ",
-                 "AWS_SECRET_ACCESS_KEY" = "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",
-                 "AWS_DEFAULT_REGION" = "EU (Frankfurt)")
-    })
-  })
+
   
   # initialization of reactive values
   initialization_dataset <- reactiveValues(raw_PPG = NULL, preprocessed_PPG = NULL, peaks = NULL, intervalsFeaturesPPG = NULL, intervalsFeaturesECG = NULL,
