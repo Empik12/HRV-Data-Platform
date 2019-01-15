@@ -16,7 +16,7 @@ ui <- fluidPage(
                                checkboxInput("headerPPG", "Header in PPG data.", TRUE),
                                textInput(inputId = "frequencyIN",
                                          label = "Acquisition frequency (HZ)",
-                                         value = "300")
+                                         value = "400")
                                ),
                                wellPanel(
                                  fileInput("ECG_File", "Choose CSV File with ECG data",
@@ -41,33 +41,35 @@ ui <- fluidPage(
                                      textInput(inputId = "frequencyIN_ACC",
                                                label = "Acquisition frequency (HZ)",
                                                value = "300")
-                               ),
-                               wellPanel(
-                                     fileInput("PD_File", "Choose CSV File with PD data",
-                                               accept = c(
-                                                 "text/csv",
-                                                 "text/comma-separated-values,text/plain",
-                                                 ".csv")
-                                     ),
-                                     checkboxInput("headerPD", "Header in PD data", TRUE),
-                                     textInput(inputId = "frequencyIN_PD",
-                                               label = "Acquisition frequency (HZ)",
-                                               value = "300")
                                )
+                               # wellPanel(
+                               #       fileInput("PD_File", "Choose CSV File with PD data",
+                               #                 accept = c(
+                               #                   "text/csv",
+                               #                   "text/comma-separated-values,text/plain",
+                               #                   ".csv")
+                               #       ),
+                               #       checkboxInput("headerPD", "Header in PD data", TRUE),
+                               #       textInput(inputId = "frequencyIN_PD",
+                               #                 label = "Acquisition frequency (HZ)",
+                               #                 value = "300")
+                               # )
                               ),
                         column(9,
                                    # plotOutput("plot"),
                                    # tableOutput("contents")
-                                   navbarPage("Data",
-                                              tabPanel("Plot",
+                                   # navbarPage("Data",
+                                   #            tabPanel("Plot",
                                                        plotOutput("plotPPG"),
-                                                       plotOutput("plotECG")
+                                                       plotOutput("plotECG"),
+                                                       plotOutput("plotACC")
+                                                       
 
-                                              ),
-                                              tabPanel("Raw",
-                                                       tableOutput("contents")
-                                              )
-                               )
+                                              # ),
+                                              # tabPanel("Raw",
+                                              #          tableOutput("contents")
+                                              # )
+                              # )
 
              )
                       
@@ -76,8 +78,9 @@ ui <- fluidPage(
              tabPanel("Features",
                     
                       helpText("Select data source to be included in features extraction:"),
-                      checkboxInput("extractPPG", "PPG", TRUE),
-                      checkboxInput("extractECG", "ECG", TRUE),
+                      checkboxInput("extractPPG", "PPG", FALSE),
+                      checkboxInput("extractECG", "ECG", FALSE),
+                      checkboxInput("extractACC", "ACC", FALSE),
                       textInput(inputId = "timeFramesSize",
                                 label = "Time frame sizes in (ms)",
                                 value = "60000"),

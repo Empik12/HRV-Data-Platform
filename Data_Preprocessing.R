@@ -1,8 +1,57 @@
+source("alg_functions.R")
 library("pracma")
 library("e1071")
+library("rwt")
+
+
+
+
+high_pass_filter <- function(rawData)
+{
+  constant <- 0.99
+  multiplicator <- (1 + constant) / 2
+  
+  for(i in 1:nrow(rawData)) {
+    row <- rawData$Value[i]
+
+    # do stuff with row
+    rawData$Value[i] <- multiplicator*(1 - (1/row))/(1 - ((1/row)*constant))
+  }
+  return(rawData)
+}
+
+prepareDateForDWT <- function(rawData, n) {
+  
+  x<- rawData$Value[1:as.numeric(n)]
+
+  return(x)
+}
+
+low_pass_filter_by_DWT <- function(rawData)
+{
+  h <- c(0.11154074335008017,
+         0.4946238903983854,
+         0.7511339080215775,
+         0.3152503517092432,
+         -0.22626469396516913,
+         -0.12976686756709563,
+         0.09750160558707936,
+         0.02752286553001629,
+         -0.031582039318031156,
+         0.0005538422009938016,
+         0.004777257511010651,
+         -0.00107730108499558)
+  
+  denoised <- denoise.dwt(rawData, h, option = default.dwt.option)
+  return(denoised$xd)
+}
+
 
 preprocess_data <- function(rawData)
-{# increasing dynamic range of the data
+{
+  
+  rawData <- data.frame(rawData)
+  colnames(rawData) <- c("Value")
   rawData$sign <- ifelse(rawData$Value < 0, 1, 0)
   rawData$Value <- ifelse(rawData$sign == 1, ((rawData$Value*rawData$Value)-(((rawData$Value*rawData$Value)*2))),
                         (rawData$Value*rawData$Value))
@@ -12,10 +61,9 @@ preprocess_data <- function(rawData)
 
 peak_detection_time_calculation <- function(rawData, frequency_of_data)
 {
-  #  Signal peaks ----
-  #cat(rawData$Value)
-  peaks <- as.data.frame(findpeaks(as.numeric(rawData$Value), nups = 15, ndowns = 1,zero = "+", npeaks = 10000, minpeakheight = 3, sortstr = FALSE))
-
+  
+  peaks <- as.data.frame(findpeaks(as.numeric(rawData), nups = 15, ndowns = 1,zero = "+", npeaks = 10000, minpeakheight = 0.5, sortstr = FALSE))
+  
   colnames(peaks) <- c("Value", "Index", "From", "To")
   # Counting time of peak
   peaks$Time <- peaks$Index * (1000/frequency_of_data)
@@ -255,23 +303,72 @@ feature_normalization <- function(list_L){
   #return(svm_prediction)
 }
 
+preprocessPPG <- function(ppg_data){
+  
+  ppg_data <- data.frame(ppg_data)
+  
+  ppg_data <- high_pass_filter(ppg_data)
+  
+  ppg_dataDWT <- prepareDateForDWT(ppg_data, findClosestLowerPowerOf2(length(ppg_data$Value)))
+  ppg_dataDWT <- low_pass_filter_by_DWT(ppg_dataDWT)
+  
+  ppg_dataDWT <- as.data.frame(ppg_dataDWT)
+  colnames(ppg_dataDWT) <- c("Value") 
+  ppg_dataDWT <- preprocess_data(ppg_dataDWT)
+  
+  return(ppg_dataDWT)
+}
 
-# train_on_base <- function(countOfIntervalsIn30sec){
-#   svm_prediction = svm(formula =  countOfIntervalsIn30sec$state ~ .,
-#                        data = countOfIntervalsIn30sec,
-#                        type = 'C-classification',
-#                        kernel = 'radial')
-#   
-#   return(svm_prediction)
-# }
-# 
-# create_segments_knn <- function(countOfIntervalsIn30sec){
-#   svm_prediction = svm(formula =  countOfIntervalsIn30sec$state ~ .,
-#                        data = countOfIntervalsIn30sec,
-#                        type = 'C-classification',
-#                        kernel = 'radial')
-#   
-#   return(svm_prediction)
-# }
+extractPPGfeatures <- function(ppg_data, frequencyIN, timeFramesSize){
+
+  peaks <- peak_detection_time_calculation(ppg_data, frequencyIN)
+  peaks <- intervals_calculation(peaks)
+  peaks <- NN_intervals_correction(peaks)
+  intervalsFeatures <- NN50_forXsec(peaks, timeFramesSize)
+  intervalsFeatures <- total_time_calculation(intervalsFeatures)
+  intervalsFeatures <- NN50_intervals_calculation(intervalsFeatures, peaks)
+  intervalsFeatures <- SDSD_intervals_calculation(intervalsFeatures, peaks)
+  intervalsFeatures <- pNN50_intervals_calculation(intervalsFeatures)
+  intervalsFeatures <- SDNN_intervals_calculation(intervalsFeatures,peaks)
+  intervalsFeatures <- as.data.frame(RMSSD_intervals_calculation(intervalsFeatures,peaks))
+
+
+  return(intervalsFeatures)
+  
+}
+
+extractECG <- function(ppg_data, frequencyIN, timeFramesSize){
+  ppg_data <- data.frame(ppg_data)
+  
+  ppg_data <- preprocess_data(ppg_data)
+  peaks <- peak_detection_time_calculation(ppg_data, frequencyIN)
+  peaks <- intervals_calculation(peaks)
+  peaks <- NN_intervals_correction(peaks)
+  intervalsFeatures <- NN50_forXsec(peaks, timeFramesSize)
+  intervalsFeatures <- total_time_calculation(intervalsFeatures)
+  intervalsFeatures <- NN50_intervals_calculation(intervalsFeatures, peaks)
+  intervalsFeatures <- SDSD_intervals_calculation(intervalsFeatures, peaks)
+  intervalsFeatures <- pNN50_intervals_calculation(intervalsFeatures)
+  intervalsFeatures <- SDNN_intervals_calculation(intervalsFeatures,peaks)
+  intervalsFeatures <- as.data.frame(RMSSD_intervals_calculation(intervalsFeatures,peaks))
+  
+  
+  return(intervalsFeatures)
+  
+}
+
+
+extractACC <- function(acc_data, frequency, interval){
+  acc_time_calculation(acc_data, frequency)
+}
+
+acc_time_calculation <- function(accData, frequency_of_data)
+{
+
+  accData$Time <- accData$x * (1000/frequency_of_data)
+  return(as.data.frame(accData))
+  
+}
+
 
 

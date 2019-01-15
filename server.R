@@ -1,9 +1,10 @@
-source("Data_Preprocessing.R")
+source("data_Preprocessing.R")
 source("UI_Helper.R")
 source("ui.R")
 library("ggplot2")
 library("devtools")
 library(DT)
+library(aws.s3)
 #install_github("timelyportfolio/sweetalertR")
 
 
@@ -13,21 +14,49 @@ library(DT)
 
 server <- (function(input,output,session) {
   
+
+  
+  reactive(function() {
+    input$recalcButton
+    isolate({
+      s3BucketName <- "hrvdata"
+      Sys.setenv("AWS_ACCESS_KEY_ID" = "AKIAIHG7EIUSBQC6GJGQ",
+                 "AWS_SECRET_ACCESS_KEY" = "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",
+                 "AWS_DEFAULT_REGION" = "EU (Frankfurt)")
+    })
+  })
+  
   # initialization of reactive values
-  ppg_data <- reactiveValues(df_data = NULL, peaks = NULL, intervalsFeatures = NULL, DFRows = 0, feedbackDF = NULL, intervalsFeaturesFeedback = NULL,
-                             df_data_ECG = NULL)
+  initialization_dataset <- reactiveValues(raw_PPG = NULL, preprocessed_PPG = NULL, peaks = NULL, intervalsFeaturesPPG = NULL, intervalsFeaturesECG = NULL,
+                             DFRows = 0, feedbackDF = NULL, intervalsFeaturesFeedback = NULL,
+                             df_data_ECG = NULL, df_data_ACC = NULL)
   
   # observation on File input of PPG Data
   observeEvent(input$PPG_File, {
     # reading data from csv and setting collumn names
-    ppg_data$df_data <- read.csv(input$PPG_File$datapath, header = input$headerPPG ,sep = ',', dec = '.', encoding = 'UTF-8')
-    colnames(ppg_data$df_data) <- c("Time", "Value") 
+    initialization_dataset$raw_PPG <- NULL
+    initialization_dataset$raw_PPG <- read.csv(input$PPG_File$datapath, header = input$headerPPG ,sep = ',', dec = '.', encoding = 'UTF-8')
+    colnames(initialization_dataset$raw_PPG) <- c("Time", "Value") 
   })
   
   observeEvent(input$ECG_File, {
     # reading data from csv and setting collumn names
-    ppg_data$df_data_ECG <- read.csv(input$ECG_File$datapath, header = input$headerECG ,sep = ',', dec = '.', encoding = 'UTF-8')
-    colnames(ppg_data$df_data_ECG) <- c("Time", "Value") 
+    initialization_dataset$df_data_ECG <- NULL
+    initialization_dataset$df_data_ECG <- read.csv(input$ECG_File$datapath, header = input$headerECG ,sep = ',', dec = '.', encoding = 'UTF-8')
+    colnames(initialization_dataset$df_data_ECG) <- c("Time", "Value") 
+  })
+  
+  observeEvent(input$ACC_File, {
+    # reading data from csv and setting collumn names
+    initialization_dataset$df_data_ACC <- NULL
+    initialization_dataset$df_data_ACC <- read.csv(input$ACC_File$datapath, header = input$headerACC ,sep = ',', dec = '.', encoding = 'UTF-8')
+    colnames(initialization_dataset$df_data_ACC) <- c("Time", "Value") 
+  })
+  
+  observeEvent(input$PD_File, {
+    # reading data from csv and setting collumn names
+    initialization_dataset$df_data_PD <- read.csv(input$PD_File$datapath, header = input$headerPD ,sep = ',', dec = '.', encoding = 'UTF-8')
+    colnames(initialization_dataset$df_data_PD) <- c("Time", "Value") 
   })
   
 
@@ -35,33 +64,60 @@ server <- (function(input,output,session) {
   # observation on features extraction from PPG data into features
   observeEvent(input$features, {
     
-    ppg_data$df_data["Value"] <- preprocess_data(ppg_data$df_data["Value"])
-    ppg_data$peaks <- peak_detection_time_calculation(ppg_data$df_data["Value"], as.numeric(input$frequencyIN))
-    ppg_data$peaks <- intervals_calculation(ppg_data$peaks)
-    ppg_data$peaks <- NN_intervals_correction(ppg_data$peaks)
-    ppg_data$intervalsFeatures <- NN50_forXsec(ppg_data$peaks, as.numeric(input$timeFramesSize))
-    ppg_data$intervalsFeatures <- total_time_calculation(ppg_data$intervalsFeatures)
-    ppg_data$intervalsFeatures <- NN50_intervals_calculation(ppg_data$intervalsFeatures, ppg_data$peaks)
-    ppg_data$intervalsFeatures <- SDSD_intervals_calculation(ppg_data$intervalsFeatures, ppg_data$peaks)
-    ppg_data$intervalsFeatures <- pNN50_intervals_calculation(ppg_data$intervalsFeatures)
-    ppg_data$intervalsFeatures <- SDNN_intervals_calculation(ppg_data$intervalsFeatures,ppg_data$peaks)
-    ppg_data$intervalsFeatures <- as.data.frame(RMSSD_intervals_calculation(ppg_data$intervalsFeatures,ppg_data$peaks))
+    if(input$extractPPG){
+        initialization_dataset$preprocessed_PPG <<- preprocessPPG(initialization_dataset$raw_PPG["Value"])
+        initialization_dataset$intervalsFeaturesPPG <- extractPPGfeatures(initialization_dataset$preprocessed_PPG, as.numeric(input$frequencyIN), as.numeric(input$timeFramesSize))
+        colnames(initialization_dataset$intervalsFeaturesPPG) <- c("count_PPG", "time_PPG", "total_time_PPG", "NN50_PPG", "SDSD_PPG","pNN50_PPG", "SDNN_PPG", "RMSSD_PPG")
+    }
+    if(input$extractECG){
+      initialization_dataset$intervalsFeaturesECG <- extractECG(initialization_dataset$df_data_ECG["Value"], as.numeric(input$frequencyIN_ECG), as.numeric(input$timeFramesSize))
+      colnames(initialization_dataset$intervalsFeaturesECG) <- c("count_ECG", "time_ECG", "total_time_ECG", "NN50_ECG", "SDSD_ECG","pNN50_ECG", "SDNN_ECG", "RMSSD_ECG")
+    }
+    if(input$extractACC){
+      extractACC(initialization_dataset$df_data_ACC, as.numeric(input$frequencyIN), as.numeric(input$timeFramesSize))
+     # colnames(initialization_dataset$intervalsFeaturesECG) <- c("count_ECG", "time_ECG", "total_time_ECG", "NN50_ECG", "SDSD_ECG","pNN50_ECG", "SDNN_ECG", "RMSSD_ECG")
+    }
+    # initialization_dataset$df_data["Value"] <- preprocess_data(initialization_dataset$df_data["Value"])
+    # initialization_dataset$peaks <- peak_detection_time_calculation(initialization_dataset$df_data["Value"], as.numeric(input$frequencyIN))
+    # initialization_dataset$peaks <- intervals_calculation(initialization_dataset$peaks)
+    # initialization_dataset$peaks <- NN_intervals_correction(initialization_dataset$peaks)
+    # initialization_dataset$intervalsFeatures <- NN50_forXsec(initialization_dataset$peaks, as.numeric(input$timeFramesSize))
+    # initialization_dataset$intervalsFeatures <- total_time_calculation(initialization_dataset$intervalsFeatures)
+    # initialization_dataset$intervalsFeatures <- NN50_intervals_calculation(initialization_dataset$intervalsFeatures, initialization_dataset$peaks)
+    # initialization_dataset$intervalsFeatures <- SDSD_intervals_calculation(initialization_dataset$intervalsFeatures, initialization_dataset$peaks)
+    # initialization_dataset$intervalsFeatures <- pNN50_intervals_calculation(initialization_dataset$intervalsFeatures)
+    # initialization_dataset$intervalsFeatures <- SDNN_intervals_calculation(initialization_dataset$intervalsFeatures,initialization_dataset$peaks)
+    # initialization_dataset$intervalsFeatures <- as.data.frame(RMSSD_intervals_calculation(initialization_dataset$intervalsFeatures,initialization_dataset$peaks))
+    # 
+    # 
+    # 
+    # 
+    # 
+    # initialization_dataset$DFRows <- as.character(1:length(initialization_dataset$intervalsFeatures$time))
+    # 
+    # #normalization
+    # initialization_dataset$intervalsFeatures$SDNN <- feature_normalization(initialization_dataset$intervalsFeatures$SDNN)
+    # 
+    # initialization_dataset$intervalsFeaturesFeedback <- merge_data_frames(initialization_dataset$intervalsFeatures, initialization_dataset$DFRows)
+    initialization_dataset$intervalsFeatures <- NULL
     
-    ppg_data$DFRows <- as.character(1:length(ppg_data$intervalsFeatures$time))
+    if(input$extractPPG){
+      initialization_dataset$intervalsFeatures <- merge(initialization_dataset$intervalsFeatures,initialization_dataset$intervalsFeaturesPPG, by=0, all=TRUE)
+    }
+    if(input$extractECG){
+      initialization_dataset$intervalsFeatures <- merge(initialization_dataset$intervalsFeatures,initialization_dataset$intervalsFeaturesECG, by=0, all=TRUE)
+    }
     
-    #normalization
-    ppg_data$intervalsFeatures$SDNN <- feature_normalization(ppg_data$intervalsFeatures$SDNN)
-    
-    ppg_data$intervalsFeaturesFeedback <- merge_data_frames(ppg_data$intervalsFeatures, ppg_data$DFRows)
     
     
+    #initialization_dataset$intervalsFeatures <- initialization_dataset$intervalsFeaturesECG
     
   })
   
   # observation on features for rendering table with features and feedback possibility
   observeEvent(input$features, {
     output$selection = DT::renderDataTable(
-      ppg_data$intervalsFeaturesFeedback[,-(1:2)],
+      initialization_dataset$intervalsFeatures[,-(1:2)],
       escape = FALSE, selection = 'none', server = FALSE,
       options = list(dom = 't', paging = FALSE, ordering = FALSE),
       callback = JS("table.rows().every(function(i, tab, row) {
@@ -78,29 +134,41 @@ server <- (function(input,output,session) {
   
   # observe feedback confirmation 
   observeEvent(input$confirmFeedback, {
-    cat(sapply(ppg_data$DFRows,function(i) input[[i]]))
+    cat(sapply(initialization_dataset$DFRows,function(i) input[[i]]))
     
-    ppg_data$intervalsFeaturesFeedback$feedback <- sapply(ppg_data$DFRows,function(i) input[[i]])
+    initialization_dataset$intervalsFeaturesFeedback$feedback <- sapply(initialization_dataset$DFRows,function(i) input[[i]])
   })
   
   
   #### Outputs setting ####
   
-  output$contents <- renderTable(ppg_data$df_data)
+  output$contents <- renderTable(initialization_dataset$raw_PPG)
   output$plotPPG <- renderPlot({
   
-     ggplot(data=ppg_data$df_data, aes(as.numeric(ppg_data$df_data$Time), ppg_data$df_data$Value)) +
+     ggplot(data=initialization_dataset$raw_PPG, aes(as.numeric(initialization_dataset$raw_PPG$Time), initialization_dataset$raw_PPG$Value)) +
        geom_line(color="red")
    })
   
   output$plotECG <- renderPlot({
 
-    ggplot(data=ppg_data$df_data_ECG, aes(as.numeric(ppg_data$df_data_ECG$Time), ppg_data$df_data_ECG$Value)) +
+    ggplot(data=initialization_dataset$df_data_ECG, aes(as.numeric(initialization_dataset$df_data_ECG$Time), initialization_dataset$df_data_ECG$Value)) +
       geom_line(color="red")
   })
   
-  output$extract <- renderTable(ppg_data$df_data)
- # output$features = DT::renderDT({as.data.frame(ppg_data$intervalsFeatures)})
+  output$plotACC <- renderPlot({
+    
+    ggplot(data=initialization_dataset$df_data_ACC, aes(as.numeric(initialization_dataset$df_data_ACC$Time), initialization_dataset$df_data_ACC$Value)) +
+      geom_line(color="red")
+  })
+  
+  output$plotPD <- renderPlot({
+    
+    ggplot(data=initialization_dataset$df_data_PD, aes(as.numeric(initialization_dataset$df_data_PD$Time), initialization_dataset$df_data_PD$Value)) +
+      geom_line(color="red")
+  })
+  
+  output$extract <- renderTable(initialization_dataset$raw_PPG)
+ # output$features = DT::renderDT({as.data.frame(initialization_dataset$intervalsFeatures)})
 
 
 
