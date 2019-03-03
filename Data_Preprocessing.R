@@ -42,7 +42,10 @@ low_pass_filter_by_DWT <- function(rawData)
          0.004777257511010651,
          -0.00107730108499558)
   
-  denoised <- denoise.dwt(rawData, h, option = default.dwt.option)
+
+
+  
+  denoised <<- denoise.dwt(rawData, h, option = default.dwt.option)
   return(denoised$xd)
 }
 
@@ -61,11 +64,12 @@ preprocess_data <- function(rawData)
 
 peak_detection_time_calculation <- function(rawData, frequency_of_data)
 {
-  
-  peaks <- as.data.frame(findpeaks(as.numeric(rawData), nups = 15, ndowns = 1,zero = "+", npeaks = 10000, minpeakheight = 0.5, sortstr = FALSE))
-  
+  # 0.987875
+  peaks <- as.data.frame(findpeaks(as.numeric(rawData), peakpat = "[+]{20,}[0]{0,}[-]{10,}", npeaks = 1000000, minpeakheight = (mean(rawData)*0.9), minpeakdistance = frequency_of_data/2, sortstr = FALSE))
   colnames(peaks) <- c("Value", "Index", "From", "To")
   # Counting time of peak
+  peaks$Index <- sort(peaks$Index)
+  vrcholy <<- peaks$Index
   peaks$Time <- peaks$Index * (1000/frequency_of_data)
   return(as.data.frame(peaks))
   
@@ -84,14 +88,30 @@ intervals_calculation <- function(peaks)
   return(peaks)
 }
 # NN intervals detection ----
+# NN_intervals_correction <- function(peaks)
+# {
+#   peaks$Interval_raw <- peaks$Interval
+#   
+#   for(rowN in 1:(as.numeric(length(peaks$Interval)-1))){
+#     if(rowN > 2) {
+#       if(peaks$Interval[rowN] > 0.7*(peaks$Interval[rowN-1]+peaks$Interval[rowN+1])){
+#         peaks$Interval[rowN]=(peaks$Interval[rowN-1]+peaks$Interval[rowN+1])/2
+#       }
+#       
+#     }
+#   }
+#   
+#   return(peaks)
+# }
+
 NN_intervals_correction <- function(peaks)
 {
   peaks$Interval_raw <- peaks$Interval
-  
+  mean_interval <- as.numeric(median(peaks$Interval))
   for(rowN in 1:(as.numeric(length(peaks$Interval)-1))){
     if(rowN > 2) {
-      if(peaks$Interval[rowN] > 0.7*(peaks$Interval[rowN-1]+peaks$Interval[rowN+1])){
-        peaks$Interval[rowN]=(peaks$Interval[rowN-1]+peaks$Interval[rowN+1])/2
+      if(peaks$Interval[rowN] > 1.3*mean_interval){
+        peaks$Interval[rowN] = mean_interval
       }
       
     }
@@ -153,7 +173,7 @@ NN50_intervals_calculation <- function(countOfIntervalsIn30sec, peaks){
   for(rowN in 1:as.numeric(length(peaks$Interval))){
     
     if(rowN > 1) {
-      
+
       if(countOfIntervalsIn30sec$count[rowNOfIntervals] == rowN){
         sumOfNN50succesive <- 0
         
@@ -184,6 +204,8 @@ NN50_intervals_calculation <- function(countOfIntervalsIn30sec, peaks){
   return(countOfIntervalsIn30sec)
 }
 
+
+
 pNN50_intervals_calculation <- function(countOfIntervalsIn30sec){
   
   countOfIntervalsIn30sec$pNN50 <- 0
@@ -194,7 +216,7 @@ pNN50_intervals_calculation <- function(countOfIntervalsIn30sec){
     }else{
       
       countOfIntervalsIn30sec$pNN50[rowN] <- ((countOfIntervalsIn30sec$NN50[rowN]/(countOfIntervalsIn30sec$count[rowN]
-                                                                                   -countOfIntervalsIn30sec$count[rowN-1]))*100)
+                                                                     -countOfIntervalsIn30sec$count[rowN-1]))*100)
     }
   }
   return(countOfIntervalsIn30sec)
@@ -305,26 +327,44 @@ feature_normalization <- function(list_L){
 
 preprocessPPG <- function(ppg_data){
   
-  ppg_data <- data.frame(ppg_data)
+    ppg_data <- data.frame(ppg_data)
+    ppg_data <- high_pass_filter(ppg_data)
+    ppg_dataDWT_rest <- ppg_data$Value
+    ppg_dataDWT <- c()
+    
+    dataSize <- length(ppg_dataDWT_rest)
+   while(dataSize > 1500){
+     
+    biggestPowerOf2 <- findClosestLowerPowerOf2(dataSize)
+    
+    #dataset split
+    ppg_dataDWT_part <- ppg_dataDWT_rest[1:as.numeric(biggestPowerOf2)]
+    ppg_dataDWT_rest <- ppg_dataDWT_rest[(as.numeric(biggestPowerOf2)+1):dataSize]
+    
+    ppg_dataDWT <- append(ppg_dataDWT, low_pass_filter_by_DWT(ppg_dataDWT_part))
   
-  ppg_data <- high_pass_filter(ppg_data)
-  
-  ppg_dataDWT <- prepareDateForDWT(ppg_data, findClosestLowerPowerOf2(length(ppg_data$Value)))
-  ppg_dataDWT <- low_pass_filter_by_DWT(ppg_dataDWT)
+    dataSize <- length(ppg_dataDWT_rest)
+   }
+
   
   ppg_dataDWT <- as.data.frame(ppg_dataDWT)
   colnames(ppg_dataDWT) <- c("Value") 
   ppg_dataDWT <- preprocess_data(ppg_dataDWT)
-  
+  mojedata <<- ppg_dataDWT
   return(ppg_dataDWT)
 }
 
 extractPPGfeatures <- function(ppg_data, frequencyIN, timeFramesSize){
-
   peaks <- peak_detection_time_calculation(ppg_data, frequencyIN)
+  #cat(peaks$Value ,"\n")
+  cat(peaks$Index ,"\n")
   peaks <- intervals_calculation(peaks)
+  cat(peaks$Interval,"\n")
   peaks <- NN_intervals_correction(peaks)
+  cat(peaks$Interval,"\n")
   intervalsFeatures <- NN50_forXsec(peaks, timeFramesSize)
+  #cat(intervalsFeatures$count ,"\n")
+  #cat(intervalsFeatures$time ,"\n")
   intervalsFeatures <- total_time_calculation(intervalsFeatures)
   intervalsFeatures <- NN50_intervals_calculation(intervalsFeatures, peaks)
   intervalsFeatures <- SDSD_intervals_calculation(intervalsFeatures, peaks)
@@ -345,6 +385,7 @@ extractECG <- function(ppg_data, frequencyIN, timeFramesSize){
   peaks <- intervals_calculation(peaks)
   peaks <- NN_intervals_correction(peaks)
   intervalsFeatures <- NN50_forXsec(peaks, timeFramesSize)
+  
   intervalsFeatures <- total_time_calculation(intervalsFeatures)
   intervalsFeatures <- NN50_intervals_calculation(intervalsFeatures, peaks)
   intervalsFeatures <- SDSD_intervals_calculation(intervalsFeatures, peaks)

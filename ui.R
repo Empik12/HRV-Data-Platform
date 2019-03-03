@@ -3,89 +3,126 @@ library(DT)
 
 ui <- fluidPage(
   navbarPage("HRV Analysis",
-             tabPanel("Dataset",
+             tabPanel("Storage setup",
+                      textInput(inputId = "AWS_ACCESS_KEY_ID",
+                                label = "Amazon Web Services Access Key ID",
+                                value = ""),
+                      textInput(inputId = "AWS_SECRET_ACCESS_KEY",
+                                label = "Amazon Web Services Secret Access Key",
+                                value = ""),
+                      textInput(inputId = "AWS_DEFAULT_REGION",
+                                label = "Amazon Web Services Default Region",
+                                value = ""),
+                      actionButton("saveStorageInfo", "Save storage access informations")
+             ),
+                      
+             tabPanel("Initialize datasets",
                       fluidRow(
-                        column(3,
+                        column(6,
+                               helpText("Data measured in calm state"),
                                wellPanel(
-                               fileInput("PPG_File", "Choose CSV File with PPG data",
+                               fileInput("PPG_File_calm", "Choose CSV File with PPG data",
                                          accept = c(
                                            "text/csv",
                                            "text/comma-separated-values,text/plain",
                                            ".csv")
                                ),
-                               checkboxInput("headerPPG", "Header in PPG data.", TRUE),
-                               textInput(inputId = "frequencyIN",
+                               checkboxInput("headerPPG_calm", "Header in PPG data.", TRUE),
+                               textInput(inputId = "frequencyIN_PPG_calm",
                                          label = "Acquisition frequency (HZ)",
                                          value = "400")
                                ),
                                wellPanel(
-                                 fileInput("ECG_File", "Choose CSV File with ECG data",
+                                 fileInput("ECG_File_calm", "Choose CSV File with ECG data",
                                                          accept = c(
                                                            "text/csv",
                                                            "text/comma-separated-values,text/plain",
                                                            ".csv")
                                                ),
-                                               checkboxInput("headerECG", "Header in ECG data.", TRUE),
-                                               textInput(inputId = "frequencyIN_ECG",
+                                               checkboxInput("headerECG_calm", "Header in ECG data.", TRUE),
+                                               textInput(inputId = "frequencyIN_ECG_calm",
                                                          label = "Acquisition frequency (HZ)",
                                                          value = "300")
                                ),
-                               wellPanel(
-                                     fileInput("ACC_File", "Choose CSV File with Accelerometer data",
-                                               accept = c(
-                                                 "text/csv",
-                                                 "text/comma-separated-values,text/plain",
-                                                 ".csv")
-                                     ),
-                                     checkboxInput("headerACC", "Header in Accelerometer data", TRUE),
-                                     textInput(inputId = "frequencyIN_ACC",
-                                               label = "Acquisition frequency (HZ)",
-                                               value = "300")
-                               )
                                # wellPanel(
-                               #       fileInput("PD_File", "Choose CSV File with PD data",
+                               #       fileInput("ACC_File", "Choose CSV File with Accelerometer data",
                                #                 accept = c(
                                #                   "text/csv",
                                #                   "text/comma-separated-values,text/plain",
                                #                   ".csv")
                                #       ),
-                               #       checkboxInput("headerPD", "Header in PD data", TRUE),
-                               #       textInput(inputId = "frequencyIN_PD",
+                               #       checkboxInput("headerACC", "Header in Accelerometer data", TRUE),
+                               #       textInput(inputId = "frequencyIN_ACC",
                                #                 label = "Acquisition frequency (HZ)",
                                #                 value = "300")
-                               # )
+                               # ),
+                               actionButton("saveCalmDatasets", "Save datasets")
                               ),
-                        column(9,
-                                   # plotOutput("plot"),
-                                   # tableOutput("contents")
-                                   # navbarPage("Data",
-                                   #            tabPanel("Plot",
-                                                       plotOutput("plotPPG"),
-                                                       plotOutput("plotECG"),
-                                                       plotOutput("plotACC")
-                                                       
-
-                                              # ),
-                                              # tabPanel("Raw",
-                                              #          tableOutput("contents")
-                                              # )
-                              # )
+                        column(6,
+                               helpText("Data measured under cognitive load"),
+                               wellPanel(
+                                 fileInput("PPG_File_cogload", "Choose CSV File with PPG data",
+                                           accept = c(
+                                             "text/csv",
+                                             "text/comma-separated-values,text/plain",
+                                             ".csv")
+                                 ),
+                                 checkboxInput("headerPPG_cogload", "Header in PPG data.", TRUE),
+                                 textInput(inputId = "frequencyIN_PPG_cogload",
+                                           label = "Acquisition frequency (HZ)",
+                                           value = "400")
+                               ),
+                               wellPanel(
+                                 fileInput("ECG_File_cogload", "Choose CSV File with ECG data",
+                                           accept = c(
+                                             "text/csv",
+                                             "text/comma-separated-values,text/plain",
+                                             ".csv")
+                                 ),
+                                 checkboxInput("headerECG_cogload", "Header in ECG data.", TRUE),
+                                 textInput(inputId = "frequencyIN_ECG_cogload",
+                                           label = "Acquisition frequency (HZ)",
+                                           value = "300")
+                               ),
+                               # wellPanel(
+                               #   fileInput("ACC_File", "Choose CSV File with Accelerometer data",
+                               #             accept = c(
+                               #               "text/csv",
+                               #               "text/comma-separated-values,text/plain",
+                               #               ".csv")
+                               #   ),
+                               #   checkboxInput("headerACC", "Header in Accelerometer data", TRUE),
+                               #   textInput(inputId = "frequencyIN_ACC",
+                               #             label = "Acquisition frequency (HZ)",
+                               #             value = "300")
+                               # ),
+                               actionButton("saveCogLoadDatasets", "Save datasets")
 
              )
                       
                       )
              ),
              tabPanel("Features",
-                    
-                      helpText("Select data source to be included in features extraction:"),
-                      checkboxInput("extractPPG", "PPG", FALSE),
-                      checkboxInput("extractECG", "ECG", FALSE),
-                      checkboxInput("extractACC", "ACC", FALSE),
-                      textInput(inputId = "timeFramesSize",
-                                label = "Time frame sizes in (ms)",
-                                value = "60000"),
-                      actionButton("features", "Extract features!"),
-                      actionButton("confirmFeedback", "Confirm feedback"),
+                      column(6,
+                        wellPanel(
+                        helpText("Select data source to be included in features extraction:"),
+                        column(6,
+                               checkboxInput("extractPPG", "PPG", FALSE)
+                        ),
+                        column(6,
+                               checkboxInput("extractECG", "ECG", FALSE)
+                        ),
+                        textInput(inputId = "timeFramesSize",
+                                  label = "Time frame sizes in (ms)",
+                                  value = "60000")
+                        )
+                      ),
+                      column(6,
+                             wellPanel(
+                              actionButton("features", "Extract features!"),
+                              actionButton("confirmFeedback", "Confirm feedback")
+                             )
+                      ),
                       #sweetalert(selector = "#confirmFeedback", event = "onclick", text = "Are you sure?",
                       #           title = "Feedback", showConfirmButton = TRUE, confirmButtonText = "OK"),
                       # tableOutput("extract"),

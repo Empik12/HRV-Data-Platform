@@ -1,5 +1,4 @@
 
-
 isPowerOf2 <- function(x) {
   n1s <- sum(as.numeric(intToBits(x)))
   if (n1s == 1) {
@@ -22,4 +21,3 @@ findClosestLowerPowerOf2 <- function(n) {
   
   return(res)
 }
-

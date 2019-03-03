@@ -1,15 +1,7 @@
-saveData <- function(data) {
+saveData <- function(data, file_name) {
   # Create a temporary file to hold the data
   data <- t(data)
-  file_name <- paste0(
-    paste(
-      get_time_human(),
-      digest(data, algo = "md5"),
-      sep = "_"
-    ),
-    ".csv"
-  )
-  file_path <- file.path(tempdir(), file_name)
+  file_path <- file.path(tempdir(), paste(file_name,".csv"))
   write.csv(data ,file_path, row.names = FALSE, quote = TRUE)
   
   # Upload the file to S3
