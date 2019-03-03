@@ -120,7 +120,7 @@ NN_intervals_correction <- function(peaks)
   return(peaks)
 }
 
-NN50_forXsec <- function(peaks, X){
+count_of_intervals_in_frame <- function(peaks, X){
   sumOfIntervals <- 0
   countOfIntervalsIn30sec <- c()
   
@@ -204,23 +204,71 @@ NN50_intervals_calculation <- function(countOfIntervalsIn30sec, peaks){
   return(countOfIntervalsIn30sec)
 }
 
-
-
-pNN50_intervals_calculation <- function(countOfIntervalsIn30sec){
+pNN50_intervals_calculation <- function(countOfIntervalsIn30sec, peaks){
+  NN_intervals <- c()
+  nn <- 0
+  rowNOfIntervals <- 1
+  countOfIntervalsIn30sec$NN50 <- 0
   
-  countOfIntervalsIn30sec$pNN50 <- 0
-  
-  for(rowN in 1:as.numeric(length(countOfIntervalsIn30sec$count))){
-    if(rowN == 1){
-      countOfIntervalsIn30sec$pNN50[rowN] <- ((countOfIntervalsIn30sec$NN50[rowN]/(countOfIntervalsIn30sec$count[rowN]-1))*100)
-    }else{
+  for(rowN in 1:as.numeric(length(peaks$Interval))){
+    
+    if(rowN > 1) {
       
-      countOfIntervalsIn30sec$pNN50[rowN] <- ((countOfIntervalsIn30sec$NN50[rowN]/(countOfIntervalsIn30sec$count[rowN]
-                                                                     -countOfIntervalsIn30sec$count[rowN-1]))*100)
+      if(countOfIntervalsIn30sec$count[rowNOfIntervals] == rowN){
+        sumOfNN50succesive <- 0
+        
+        for(rowInNN50 in 1:as.numeric(length(NN_intervals))){
+          sumOfNN50succesive <- sumOfNN50succesive + NN_intervals[rowInNN50]
+        }
+        if(rowNOfIntervals > 1){
+          if((countOfIntervalsIn30sec$count[rowNOfIntervals] - countOfIntervalsIn30sec$count[rowNOfIntervals-1]) != 0){
+            countOfIntervalsIn30sec$pNN50[rowNOfIntervals] <- (sumOfNN50succesive/(countOfIntervalsIn30sec$count[rowNOfIntervals] - countOfIntervalsIn30sec$count[rowNOfIntervals-1])) * 100
+            
+          }else{
+            countOfIntervalsIn30sec$pNN50[rowNOfIntervals] <- 0
+          }        
+        }else{
+          if((countOfIntervalsIn30sec$count[rowNOfIntervals] - 1) != 0){
+            countOfIntervalsIn30sec$pNN50[rowNOfIntervals] <- (sumOfNN50succesive/(countOfIntervalsIn30sec$count[rowNOfIntervals] - 1)) * 100
+            
+          }else{
+            countOfIntervalsIn30sec$pNN50[rowNOfIntervals] <- 0
+          }            
+        }
+
+        
+        NN_intervals <- c()
+        rowNOfIntervals <- rowNOfIntervals +1
+      }else{
+        if(50 < (peaks$Interval[rowN-1]-peaks$Interval[rowN]) | 50 < (peaks$Interval[rowN]-peaks$Interval[rowN-1])){
+          nn <- nn +1
+        }else{
+          if(nn != 0){
+            NN_intervals <- append(NN_intervals, nn)
+          }
+          nn <- 0
+        }
+      }
     }
   }
   return(countOfIntervalsIn30sec)
 }
+
+# pNN50_intervals_calculation <- function(countOfIntervalsIn30sec){
+#   
+#   countOfIntervalsIn30sec$pNN50 <- 0
+#   
+#   for(rowN in 1:as.numeric(length(countOfIntervalsIn30sec$count))){
+#     if(rowN == 1){
+#       countOfIntervalsIn30sec$pNN50[rowN] <- ((countOfIntervalsIn30sec$NN50[rowN]/(countOfIntervalsIn30sec$count[rowN]-1))*100)
+#     }else{
+#       
+#       countOfIntervalsIn30sec$pNN50[rowN] <- ((countOfIntervalsIn30sec$NN50[rowN]/(countOfIntervalsIn30sec$count[rowN]
+#                                                                      -countOfIntervalsIn30sec$count[rowN-1]))*100)
+#     }
+#   }
+#   return(countOfIntervalsIn30sec)
+# }
 
 SDNN_intervals_calculation <- function(countOfIntervalsIn30sec, peaks){
   NN_intervals <- c()
@@ -362,13 +410,13 @@ extractPPGfeatures <- function(ppg_data, frequencyIN, timeFramesSize){
   cat(peaks$Interval,"\n")
   peaks <- NN_intervals_correction(peaks)
   cat(peaks$Interval,"\n")
-  intervalsFeatures <- NN50_forXsec(peaks, timeFramesSize)
+  intervalsFeatures <- count_of_intervals_in_frame(peaks, timeFramesSize)
   #cat(intervalsFeatures$count ,"\n")
   #cat(intervalsFeatures$time ,"\n")
   intervalsFeatures <- total_time_calculation(intervalsFeatures)
   intervalsFeatures <- NN50_intervals_calculation(intervalsFeatures, peaks)
   intervalsFeatures <- SDSD_intervals_calculation(intervalsFeatures, peaks)
-  intervalsFeatures <- pNN50_intervals_calculation(intervalsFeatures)
+  intervalsFeatures <- pNN50_intervals_calculation(intervalsFeatures, peaks)
   intervalsFeatures <- SDNN_intervals_calculation(intervalsFeatures,peaks)
   intervalsFeatures <- as.data.frame(RMSSD_intervals_calculation(intervalsFeatures,peaks))
 
